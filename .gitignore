@@ -1,0 +1,16 @@
+﻿# Segredos (NUNCA commitar)
+.env
+.env.*
+!.env.example
+
+# Dependências
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema e editor
+.DS_Store
+Thumbs.db
+.vscode/
