@@ -2,8 +2,6 @@
 
 **Cloud Challenge · Desafio 07** · Cloud Computing · Senac · Prof. Roni Maciel · 2026.2
 
-**Grupo XX** *(substituir XX pelo número do grupo)*
-
 | Integrante | Papel |
 |---|---|
 | Caio Sabino | DEV (back-end) |
@@ -11,10 +9,6 @@
 | Arthur Vininicus | NUVEM |
 | Thauan Bezerra | QA |
 | Pedro Rodrigues | DEV (interface) |
-
-- **Nível de implantação:** A / B / C *(preencher o nível alcançado)*
-- **URL pública (Nível A):** *(preencher)*
-- **Vídeo do pitch (90 s):** *(colar o link)*
 
 ---
 
@@ -32,7 +26,7 @@ O produto registra despesas num banco de dados na nuvem, calcula os totais **no 
 |---|---|---|
 | RF1 | Registrar despesa: descrição, valor (> 0, até 2 casas decimais), categoria e data (não futura) | ⬜ Pendente |
 | RF2 | Listar despesas por período (de/até) e categoria | ⬜ Pendente |
-| RF3 | Totais por categoria e total geral do período, calculados no banco e exatos ao centavo **(regra central)** | ⬜ Pendente |
+| RF3 | Totais por categoria e total geral do período, calculados no banco e exatos ao centavo  | ⬜ Pendente |
 | RF4 | Marcar despesa como conferida; conferida não pode ser editada nem excluída | ⬜ Pendente |
 | RF5 | Editar descrição, valor e categoria de despesa não conferida | ⬜ Pendente |
 | Geral | `GET /health` testando a conexão com o banco | ⬜ Pendente |
@@ -64,8 +58,8 @@ flowchart LR
 | Decisão | Escolha | Justificativa |
 |---|---|---|
 | Banco | PostgreSQL Servidor Flexível | `NUMERIC` nativo e `CHECK`; serviço gerenciado (backup e manutenção pela Azure) |
-| Categorias | `CHECK IN (...)` | Cinco categorias fixas; mais simples que tabela própria, mas menos flexível *(confirmar)* |
-| Exclusão | Física, só para despesas não conferidas | Conferida é bloqueada com 409 *(confirmar)* |
+| Categorias | `CHECK IN (...)` | Cinco categorias fixas; mais simples que tabela própria, mas menos flexíve |
+| Exclusão | Física, só para despesas não conferidas | Conferida é bloqueada com 409 |
 | Fuso do "hoje" | *(Brasília ou UTC: definir e documentar)* | O App Service roda em UTC; depois das 21h em Brasília já é "amanhã" em UTC |
 | Valor na API | Ponto decimal (`12.50`) | A vírgula é tratada só na interface |
 | Categoria com acento | *(`manutencao` sem acento ou `manutenção`: definir)* | Evita problemas de codificação |
@@ -205,7 +199,6 @@ Print das variáveis de ambiente com o valor oculto e do `.gitignore` com `.env`
 
 ## 9. Dificuldade superada
 
-*(Preencher durante a noite, no formato abaixo.)*
 
 - **Problema:**
 - **Diagnóstico:**
@@ -220,7 +213,6 @@ Print das variáveis de ambiente com o valor oculto e do `.gitignore` com `.env`
 - Sem autenticação: qualquer pessoa com a URL acessa o sistema.
 - A conferência não registra quem conferiu.
 - Sem paginação na listagem.
-- *(acrescentar outras limitações encontradas)*
 
 **Próximos passos**
 - Login do tesoureiro e registro de quem conferiu cada despesa.
