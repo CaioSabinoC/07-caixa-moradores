@@ -1,0 +1,717 @@
+# =====================================================================
+# Caixa da Associação de Moradores — requisições para o REST Client
+# Extensão do VS Code: "REST Client" (humao.rest-client)
+# Clique em "Send Request" acima de cada bloco, ou Ctrl+Alt+R.
+# Responsável: Thauan (QA). Dados 100% fictícios.
+# =====================================================================
+#
+# COMO USAR
+#  1. Local:  @baseUrl = http://localhost:3000
+#     Azure:  @baseUrl = https://app-cloud-gXX-iniciais.azurewebsites.net
+#  2. Rode na ordem dos blocos numerados: os casos de teste dependem
+#     dos dados criados nos blocos anteriores.
+#  3. Datas "fixas" (2026-01-15 etc.) isolam cada teste; as datas
+#     "relativas" usam {{$datetime "YYYY-MM-DD" N d}} do REST Client.
+#  4. O nome do campo da data no corpo (data_despesa) segue o schema.
+#     Se o DEV usar outro nome (ex.: "data"), troque com Localizar/Substituir.
+#  5. Os blocos "# @name" guardam o id criado em variável. Isso assume
+#     que o POST devolve o objeto com "id" (ex.: {"id": 7, ...}).
+#     Se vier embrulhado (ex.: {"despesa": {...}}), ajuste o caminho.
+#  6. Categorias sem acento, como no schema: manutencao, limpeza,
+#     eventos, administrativo, outros.
+
+@baseUrl = http://localhost:3000
+@json = application/json
+
+# =====================================================================
+# 0. HEALTH
+# =====================================================================
+
+### 0.1 Health — esperado 200, com "iniciado_em" (Print 2 / Print 3)
+GET {{baseUrl}}/health
+
+### 0.2 Health — 503 SEM detalhes internos (caso negativo, teste #9)
+# Não é uma requisição diferente: derrube a conexão e rode o 0.1.
+#   Local: troque a senha/host em DATABASE_URL no .env e reinicie o npm start
+#   Azure: Parar o servidor PostgreSQL (ou DATABASE_URL errada) e reinicie o app
+# Esperado: 503 com mensagem genérica. NÃO pode aparecer host, usuário,
+# senha, stack trace, "ECONNREFUSED" nem a string de conexão.
+GET {{baseUrl}}/health
+
+
+# =====================================================================
+# 1. CADASTRO (RF1) — casos de sucesso
+# =====================================================================
+
+### 1.1 Cadastrar despesa válida — esperado 201
+# @name criar
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Troca de lâmpadas do corredor",
+  "valor": 45.90,
+  "categoria": "manutencao",
+  "data_despesa": "2026-11-10"
+}
+
+### 1.2 Cadastrar com valor inteiro (sem casas) — esperado 201
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Compra de sacos de lixo",
+  "valor": 30,
+  "categoria": "limpeza",
+  "data_despesa": "2026-11-11"
+}
+
+### 1.3 Cadastrar com valor 0.01 (menor valor possível) — esperado 201
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Tarifa bancária fictícia",
+  "valor": 0.01,
+  "categoria": "administrativo",
+  "data_despesa": "2026-11-12"
+}
+
+### 1.4 Cadastrar com data de HOJE (limite: não é futura) — esperado 201
+# Teste do fuso: depois das 21h em Brasília já é "amanhã" em UTC.
+# Anote no teste qual "hoje" o servidor adotou (decisão do README).
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Despesa de hoje (teste de limite)",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "{{$datetime "YYYY-MM-DD"}}"
+}
+
+
+# =====================================================================
+# 2. CADASTRO (RF1) — casos de erro 400
+# =====================================================================
+
+### 2.1 CA1 — valor 0 — esperado 400 com mensagem (teste #1)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Valor zero",
+  "valor": 0,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.2 CA1 — valor negativo (-5) — esperado 400 (teste #2)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Valor negativo",
+  "valor": -5,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.3 CA1 — 3 casas decimais (12.345) — esperado 400 (teste #3)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Três casas decimais",
+  "valor": 12.345,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.4 CA2 — data futura (daqui a 2 dias) — esperado 400 (teste #4)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Data futura",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "{{$datetime "YYYY-MM-DD" 2 d}}"
+}
+
+### 2.5 Valor não numérico — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Valor em texto",
+  "valor": "abc",
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.6 Valor ausente — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Sem valor",
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.7 Valor com vírgula (API só aceita ponto) — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Valor com vírgula",
+  "valor": "12,50",
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.8 Categoria inexistente — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Categoria inválida",
+  "valor": 10.00,
+  "categoria": "viagens",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.9 Categoria ausente — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Sem categoria",
+  "valor": 10.00,
+  "data_despesa": "2026-11-10"
+}
+
+### 2.10 Descrição vazia — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.11 Descrição só com espaços — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "     ",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.12 Descrição ausente — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.13 Descrição com mais de 200 caracteres — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.14 Data ausente — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Sem data",
+  "valor": 10.00,
+  "categoria": "outros"
+}
+
+### 2.15 Data em formato inválido (dd/mm/aaaa) — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Data fora do padrão",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "10/11/2026"
+}
+
+### 2.16 Data impossível (30 de fevereiro) — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Data inexistente",
+  "valor": 10.00,
+  "categoria": "outros",
+  "data_despesa": "2026-02-30"
+}
+
+### 2.17 Valor grande demais para NUMERIC(10,2) — esperado 400 (e não 500)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Estouro do tipo numérico",
+  "valor": 999999999.99,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+### 2.18 Corpo vazio — esperado 400
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{}
+
+### 2.19 JSON malformado — esperado 400 (sem stack trace na resposta)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{ "descricao": "quebrado", "valor": 10.00,
+
+### 2.20 Tentativa de SQL injection na descrição — esperado 201 e o texto
+# gravado LITERALMENTE (consulta parametrizada). A tabela não pode sumir.
+# Depois rode o 3.1 e confira que a listagem continua funcionando.
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "'); DROP TABLE despesas;--",
+  "valor": 1.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-10"
+}
+
+
+# =====================================================================
+# 3. LISTAGEM (RF2)
+# =====================================================================
+
+### 3.1 Listar todas — esperado 200
+GET {{baseUrl}}/api/despesas
+
+### 3.2 Filtrar só por categoria — esperado 200, só "manutencao"
+GET {{baseUrl}}/api/despesas?categoria=manutencao
+
+### 3.3 Filtrar só por "de" — esperado 200
+GET {{baseUrl}}/api/despesas?de=2026-11-01
+
+### 3.4 Filtrar só por "ate" — esperado 200
+GET {{baseUrl}}/api/despesas?ate=2026-11-30
+
+### 3.5 Filtrar por período + categoria — esperado 200
+GET {{baseUrl}}/api/despesas?de=2026-11-01&ate=2026-11-30&categoria=limpeza
+
+### 3.6 Período sem nenhuma despesa — esperado 200 com lista vazia (não 404)
+GET {{baseUrl}}/api/despesas?de=2000-01-01&ate=2000-01-31
+
+### 3.7 "de" maior que "ate" — esperado 400
+GET {{baseUrl}}/api/despesas?de=2026-12-01&ate=2026-11-01
+
+### 3.8 Data do filtro em formato inválido — esperado 400
+GET {{baseUrl}}/api/despesas?de=ontem
+
+### 3.9 Categoria do filtro inexistente — esperado 400
+GET {{baseUrl}}/api/despesas?categoria=viagens
+
+
+# =====================================================================
+# 4. PREPARAÇÃO DOS DADOS DE TESTE (CA3 e CA4)
+#    Rode estes blocos UMA vez, em ordem, antes de 5.x
+# =====================================================================
+
+### 4.1 CA3 — 10,10 na categoria "eventos", em 2026-01-15
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA3 parcela 1",
+  "valor": 10.10,
+  "categoria": "eventos",
+  "data_despesa": "2026-01-15"
+}
+
+### 4.2 CA3 — 20,20 na categoria "eventos", em 2026-01-15
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA3 parcela 2",
+  "valor": 20.20,
+  "categoria": "eventos",
+  "data_despesa": "2026-01-15"
+}
+
+### 4.3 CA3 — 0,70 na categoria "eventos", em 2026-01-15
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA3 parcela 3",
+  "valor": 0.70,
+  "categoria": "eventos",
+  "data_despesa": "2026-01-15"
+}
+
+### 4.4 CA4 — FORA do período (um dia antes do "de"): 100,00 em 2026-02-09
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA4 fora (antes)",
+  "valor": 100.00,
+  "categoria": "limpeza",
+  "data_despesa": "2026-02-09"
+}
+
+### 4.5 CA4 — LIMITE INFERIOR (= "de"): 10,00 em 2026-02-10
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA4 limite inferior",
+  "valor": 10.00,
+  "categoria": "limpeza",
+  "data_despesa": "2026-02-10"
+}
+
+### 4.6 CA4 — DENTRO do período: 20,00 em 2026-02-15
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA4 dentro",
+  "valor": 20.00,
+  "categoria": "limpeza",
+  "data_despesa": "2026-02-15"
+}
+
+### 4.7 CA4 — LIMITE SUPERIOR (= "ate"): 30,00 em 2026-02-20
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA4 limite superior",
+  "valor": 30.00,
+  "categoria": "limpeza",
+  "data_despesa": "2026-02-20"
+}
+
+### 4.8 CA4 — FORA do período (um dia depois do "ate"): 100,00 em 2026-02-21
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "CA4 fora (depois)",
+  "valor": 100.00,
+  "categoria": "limpeza",
+  "data_despesa": "2026-02-21"
+}
+
+
+# =====================================================================
+# 5. TOTAIS (RF3 — REGRA CENTRAL)
+# =====================================================================
+
+### 5.1 CA3 (teste #5) — total exato de "eventos" no dia 2026-01-15
+# Esperado: categoria "eventos" = "31.00" (texto, exatamente 31.00)
+# e total geral do período = "31.00". Não pode ser 31 nem 30.999999.
+GET {{baseUrl}}/api/despesas/totais?de=2026-01-15&ate=2026-01-15
+
+### 5.2 CA4 (teste #6) — período 2026-02-10 a 2026-02-20, limites inclusivos
+# Esperado: "limpeza" = "60.00" (10 + 20 + 30) e total geral = "60.00".
+# As despesas de 100,00 (dias 09 e 21) NÃO entram.
+GET {{baseUrl}}/api/despesas/totais?de=2026-02-10&ate=2026-02-20
+
+### 5.3 Listagem do mesmo período (confere com 5.2) — esperado 3 linhas
+GET {{baseUrl}}/api/despesas?de=2026-02-10&ate=2026-02-20&categoria=limpeza
+
+### 5.4 Totais sem filtro (tudo) — esperado 200
+GET {{baseUrl}}/api/despesas/totais
+
+### 5.5 Totais de período vazio — esperado 200, total geral "0.00", sem erro
+GET {{baseUrl}}/api/despesas/totais?de=2000-01-01&ate=2000-01-31
+
+### 5.6 Totais com "de" maior que "ate" — esperado 400
+GET {{baseUrl}}/api/despesas/totais?de=2026-12-01&ate=2026-11-01
+
+### 5.7 Totais com data inválida — esperado 400
+GET {{baseUrl}}/api/despesas/totais?de=abc&ate=2026-11-30
+
+### 5.8 Teste de ponto flutuante: 0.10 + 0.20 deve dar exatamente 0.30
+# Rode 5.8a, 5.8b e depois 5.8c. Esperado: "0.30" (e não 0.30000000000000004).
+# @name flutuanteA
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Float parcela 0.10",
+  "valor": 0.10,
+  "categoria": "administrativo",
+  "data_despesa": "2026-03-05"
+}
+
+###
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Float parcela 0.20",
+  "valor": 0.20,
+  "categoria": "administrativo",
+  "data_despesa": "2026-03-05"
+}
+
+###
+GET {{baseUrl}}/api/despesas/totais?de=2026-03-05&ate=2026-03-05
+
+
+# =====================================================================
+# 6. CONFERIR (RF4), EDITAR (RF5) E EXCLUIR
+# =====================================================================
+
+### 6.1 Criar despesa para editar/conferir (guarda o id)
+# @name despesaA
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Despesa A (para editar e conferir)",
+  "valor": 80.00,
+  "categoria": "manutencao",
+  "data_despesa": "2026-11-05"
+}
+
+###
+@idA = {{despesaA.response.body.id}}
+
+### 6.2 RF5 — editar despesa NÃO conferida — esperado 200
+PUT {{baseUrl}}/api/despesas/{{idA}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Despesa A (editada)",
+  "valor": 85.50,
+  "categoria": "limpeza"
+}
+
+### 6.3 Conferir a despesa A — esperado 200
+PATCH {{baseUrl}}/api/despesas/{{idA}}/conferir
+
+### 6.4 CA5 (teste #7) — editar despesa CONFERIDA — esperado 409
+PUT {{baseUrl}}/api/despesas/{{idA}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Tentativa de editar conferida",
+  "valor": 1.00,
+  "categoria": "outros"
+}
+
+### 6.5 Excluir despesa CONFERIDA — esperado 409
+DELETE {{baseUrl}}/api/despesas/{{idA}}
+
+### 6.6 Conferir de novo (já conferida) — esperado 409
+PATCH {{baseUrl}}/api/despesas/{{idA}}/conferir
+
+### 6.7 Confirmar que a despesa A continua com os dados da edição 6.2
+# (a tentativa 6.4 não pode ter alterado nada). Procure o id na lista.
+GET {{baseUrl}}/api/despesas?de=2026-11-05&ate=2026-11-05
+
+### 6.8 Criar despesa B (para excluir) e guardar o id
+# @name despesaB
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Despesa B (para excluir)",
+  "valor": 12.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-06"
+}
+
+###
+@idB = {{despesaB.response.body.id}}
+
+### 6.9 Excluir despesa NÃO conferida — esperado 204
+DELETE {{baseUrl}}/api/despesas/{{idB}}
+
+### 6.10 Excluir a mesma despesa de novo — esperado 404
+DELETE {{baseUrl}}/api/despesas/{{idB}}
+
+
+# =====================================================================
+# 7. ERROS 400 NA EDIÇÃO (PUT) — usar uma despesa NÃO conferida
+#    Rode o 7.0 para criar a despesa C e guardar o id.
+# =====================================================================
+
+### 7.0 Criar despesa C (não conferida)
+# @name despesaC
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "Despesa C (para testar PUT inválido)",
+  "valor": 50.00,
+  "categoria": "outros",
+  "data_despesa": "2026-11-07"
+}
+
+###
+@idC = {{despesaC.response.body.id}}
+
+### 7.1 PUT com valor 0 — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Edição inválida",
+  "valor": 0,
+  "categoria": "outros"
+}
+
+### 7.2 PUT com valor negativo — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Edição inválida",
+  "valor": -5,
+  "categoria": "outros"
+}
+
+### 7.3 PUT com 3 casas decimais — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Edição inválida",
+  "valor": 12.345,
+  "categoria": "outros"
+}
+
+### 7.4 PUT com categoria inexistente — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{
+  "descricao": "Edição inválida",
+  "valor": 10.00,
+  "categoria": "viagens"
+}
+
+### 7.5 PUT com descrição vazia — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{
+  "descricao": "",
+  "valor": 10.00,
+  "categoria": "outros"
+}
+
+### 7.6 PUT sem corpo — esperado 400
+PUT {{baseUrl}}/api/despesas/{{idC}}
+Content-Type: {{json}}
+
+{}
+
+
+# =====================================================================
+# 8. ID INEXISTENTE E ID INVÁLIDO (404 / 400)
+# =====================================================================
+
+### 8.1 Teste #8 — PUT em id inexistente — esperado 404
+PUT {{baseUrl}}/api/despesas/999999
+Content-Type: {{json}}
+
+{
+  "descricao": "Id inexistente",
+  "valor": 10.00,
+  "categoria": "outros"
+}
+
+### 8.2 Teste #8 — PATCH conferir em id inexistente — esperado 404
+PATCH {{baseUrl}}/api/despesas/999999/conferir
+
+### 8.3 Teste #8 — DELETE em id inexistente — esperado 404
+DELETE {{baseUrl}}/api/despesas/999999
+
+### 8.4 Id não numérico — esperado 400 (ou 404; o importante é NÃO ser 500)
+DELETE {{baseUrl}}/api/despesas/abc
+
+### 8.5 Id negativo — esperado 400 ou 404, nunca 500
+DELETE {{baseUrl}}/api/despesas/-1
+
+### 8.6 Id gigante (estoura INTEGER) — esperado 400 ou 404, nunca 500
+DELETE {{baseUrl}}/api/despesas/99999999999999999999
+
+### 8.7 Rota inexistente — esperado 404 em JSON, sem detalhes internos
+GET {{baseUrl}}/api/qualquer-coisa
+
+### 8.8 Método não suportado — esperado 404 ou 405
+PATCH {{baseUrl}}/api/despesas
+
+
+# =====================================================================
+# 9. PROVA DE PERSISTÊNCIA (ponto de controle 2)
+#    Palavra do dia anunciada às 19h55. Troque GXX-PALAVRA abaixo.
+#    Ex.: se o grupo é o 07 e a palavra é NIMBUS => "G07-NIMBUS"
+# =====================================================================
+
+### 9.1 Cadastrar o registro da prova (GXX-PALAVRA)
+POST {{baseUrl}}/api/despesas
+Content-Type: {{json}}
+
+{
+  "descricao": "GXX-PALAVRA",
+  "valor": 1.00,
+  "categoria": "outros",
+  "data_despesa": "{{$datetime "YYYY-MM-DD"}}"
+}
+
+### 9.2 Listar pela aplicação — PRINT 1 (data e hora visíveis)
+GET {{baseUrl}}/api/despesas
+
+### 9.3 Anotar "iniciado_em" ANTES do reinício — PRINT 2
+GET {{baseUrl}}/health
+
+# --- REINICIAR A APLICAÇÃO ---
+#   Nível A: portal > Reiniciar, ou
+#     az webapp restart --name app-cloud-gXX-iniciais --resource-group rg-cloud-gXX
+#   Níveis B e C: parar (Ctrl+C) e iniciar (npm start)
+
+### 9.4 Após o reinício: "iniciado_em" NOVO — PRINT 3 (parte 1)
+GET {{baseUrl}}/health
+
+### 9.5 Após o reinício: o registro continua listado — PRINT 3 (parte 2)
+GET {{baseUrl}}/api/despesas
+
+# PRINT 4: mesma linha numa consulta direta ao banco (Editor de consultas,
+# Cloud Shell com psql, ou cliente SQL):
+#   SELECT * FROM despesas WHERE descricao = 'GXX-PALAVRA';
+
+### 9.6 Teste do professor (Nível A, entre 20h40 e 21h10)
+# O professor cadastra PROF-HHMM pela URL pública. Aqui só localizamos:
+GET {{baseUrl}}/api/despesas
