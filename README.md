@@ -156,34 +156,19 @@ Abra `http://localhost:3000/health` para conferir a conexão com o banco.
 
 ## 7. Testes
 
-Resultados registrados com data e hora em [`evidencias/`](evidencias/).
+### Casos obrigatórios
 
-| # | Caso | Tipo | Entrada | Esperado | Obtido | Resultado |
-|---|---|---|---|---|---|---|
-| 1 | CA1: valor zero | Negativo | `valor = 0` | 400 com mensagem | | |
-| 2 | CA1: valor negativo | Negativo | `valor = -5` | 400 | | |
-| 3 | CA1: 3 casas decimais | Negativo | `valor = 12.345` | 400 | | |
-| 4 | CA2: data futura | Negativo | `data` amanhã | 400 | | |
-| 5 | CA3: soma exata | Positivo | 10,10 + 20,20 + 0,70 na mesma categoria | Total **31.00** | | |
-| 6 | CA4: período filtrado | Positivo | `de`/`ate` com despesas dentro e fora | Só as dentro, limites inclusivos | | |
-| 7 | CA5: editar conferida | Negativo | `PUT` em despesa conferida | 409 | | |
-| 8 | Id inexistente | Negativo | `PUT`/`DELETE` em id que não existe | 404 | | |
-| 9 | Banco indisponível | Negativo | `/health` sem conexão | 503 sem detalhes internos | | |
-
-### Prova de persistência
-
-Registro com a palavra do dia: `GXX-PALAVRA` *(preencher)*. Registro do professor (Nível A): `PROF-HHMM` *(preencher)*.
-
-| Print | Conteúdo | Arquivo |
-|---|---|---|
-| 1 | Registro listado pela aplicação | `evidencias/` |
-| 2 | `iniciado_em` do `/health` antes do reinício | `evidencias/` |
-| 3 | Após o reinício: `iniciado_em` novo e o registro continua listado | `evidencias/` |
-| 4 | Mesma linha em consulta direta ao banco | `evidencias/` |
-
-### Configuração segura (E5)
-
-Print das variáveis de ambiente com o valor oculto e do `.gitignore` com `.env`, em `evidencias/`.
+| # | Caso | Tipo | Bloco | Esperado | Obtido | Resultado | Data/hora |
+|---|---|---|---|---|---|---|---|
+| 1 | CA1: valor zero | Negativo | 2.1 | 400 com mensagem | | | |
+| 2 | CA1: valor negativo | Negativo | 2.2 | 400 | | | |
+| 3 | CA1: 3 casas decimais | Negativo | 2.3 | 400 | | | |
+| 4 | CA2: data futura | Negativo | 2.4 | 400 | | | |
+| 5 | CA3: soma exata 10,10 + 20,20 + 0,70 | Positivo | 4.1–4.3 e 5.1 | `eventos` = `31.00` | | | |
+| 6 | CA4: período filtrado, limites inclusivos | Positivo | 4.4–4.8 e 5.2 | `limpeza` = `60.00` (100,00 de fora ignorados) | | | |
+| 7 | CA5: editar conferida | Negativo | 6.3 e 6.4 | 409, dados inalterados | | | |
+| 8 | Id inexistente (PUT, PATCH, DELETE) | Negativo | 8.1–8.3 | 404 nos três | | | |
+| 9 | Banco indisponível | Negativo | 0.2 | 503 sem host, senha ou stack trace | | | |
 
 ---
 
